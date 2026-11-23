@@ -1,0 +1,30 @@
+{
+  "format": 1,
+  "horodatage": "2026-11-19T17:14:17Z",
+  "equipe": "equipe-1",
+  "kit": "0.1.0",
+  "etat": "b422c84dc68cb159",
+  "commit": "959cf6f1c23c2416376ce28bbe5fdbeeaacbd484",
+  "modifie": true,
+  "moteur": "smolagents",
+  "modele": "claude-haiku-5-5",
+  "question": "hello",
+  "reponse": {
+    "statut": "abstention",
+    "valeur": null,
+    "justification": "Ce message est une salutation et ne porte pas sur le tableau. Pose une question sur les patients, les dosages ou les colonnes cliniques pour que je puisse l'analyser."
+  },
+  "etapes": [
+    {
+      "code": "final_answer({\"statut\": \"abstention\", \"valeur\": None, \"justification\": \"Ce message est une salutation et ne porte pas sur le tableau. Pose une question sur les patients, les dosages ou les colonnes cliniques pour que je puisse l'analyser.\"})",
+      "resultat": "Execution logs:\nLast output from code snippet:\n{'statut': 'abstention', 'valeur': None, 'justification': \"Ce message est une salutation et ne porte pas sur le tableau. Pose une question sur les patients, les dosages ou les colonnes cliniques pour que je puisse l'analyser.\"}"
+    }
+  ],
+  "jetons": {
+    "entree": 7068,
+    "sortie": 246
+  },
+  "cout_estime": 0.0008298000000000001,
+  "duree_s": 2.97,
+  "erreur": null
+}

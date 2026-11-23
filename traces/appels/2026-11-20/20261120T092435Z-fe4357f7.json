@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "horodatage": "2026-11-20T09:24:35Z",
+  "equipe": "equipe-1",
+  "kit": "0.1.0",
+  "etat": "dfd7ac283ca0f1b6",
+  "commit": "3d2cf0f4341a11dec0c3f57ce694c0efcf800eb1",
+  "modifie": true,
+  "moteur": null,
+  "modele": null,
+  "question": "Quel allergène compte le plus de patients positifs au seuil de 0,3 ?",
+  "reponse": null,
+  "etapes": [],
+  "jetons": {
+    "entree": 0,
+    "sortie": 0
+  },
+  "cout_estime": 0.0,
+  "duree_s": 0.12,
+  "erreur": "NameError : name 'CodeAgent' is not defined"
+}
