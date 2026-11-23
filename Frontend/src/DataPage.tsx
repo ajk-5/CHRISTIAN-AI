@@ -69,7 +69,7 @@ export default function DataPage() {
     <div className="page" onMouseLeave={tooltip.hide}>
       <header className="page__head">
         <h1>Données</h1>
-        <p>Statistiques agrégées, calculées en Python sur votre machine. Le navigateur ne reçoit aucune ligne de patient.</p>
+        <p>Statistiques agrégées, calculées côté serveur en Python. Le navigateur ne reçoit aucune ligne de patient.</p>
       </header>
 
       <section className="tiles" aria-label="Chiffres clés">

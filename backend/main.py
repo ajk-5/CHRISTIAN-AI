@@ -169,9 +169,12 @@ async def dataset_summary() -> DatasetSummary:
         return await asyncio.to_thread(_dataset_summary)
     except Exception as exc:
         # Avoid exposing internal filesystem paths and data via HTTP errors.
-        raise HTTPException(
-            status_code=503, detail="Le tableau ne se charge pas. Lance uv run kit controle dans le terminal."
-        ) from exc
+        detail = (
+            "Les statistiques du tableau sont momentanément indisponibles."
+            if IS_VERCEL
+            else "Le tableau ne se charge pas. Lance uv run kit controle dans le terminal."
+        )
+        raise HTTPException(status_code=503, detail=detail) from exc
 
 
 @lru_cache(maxsize=1)
@@ -203,9 +206,12 @@ async def pollen_calendar() -> PollenCalendar:
     try:
         return await asyncio.to_thread(_pollen_calendar)
     except Exception as exc:
-        raise HTTPException(
-            status_code=503, detail="Le calendrier pollinique est introuvable dans donnees_complementaires/."
-        ) from exc
+        detail = (
+            "Le calendrier pollinique est momentanément indisponible."
+            if IS_VERCEL
+            else "Le calendrier pollinique est introuvable dans donnees_complementaires/."
+        )
+        raise HTTPException(status_code=503, detail=detail) from exc
 
 
 def _from_trace(stdout: str) -> dict | None:
@@ -387,23 +393,30 @@ def _run_agent_in_process(question: str) -> AskResponse:
         if isinstance(expected, modele.CagnotteEpuisee):
             raise HTTPException(
                 status_code=502,
-                detail="Cagnotte épuisée : la limite de dépense de l'équipe est atteinte. Va voir Adrien.",
+                detail="La limite d'utilisation de l'API est atteinte. Réessaie plus tard ou contacte l'administrateur.",
             ) from exc
         if isinstance(expected, CleAbsente):
             raise HTTPException(
                 status_code=502,
-                detail="La clé d'API est absente. Configure la variable d'environnement ALLERGYLAB_CLE sur Vercel.",
+                detail="Le service d'IA n'est pas encore configuré (clé d'API manquante).",
             ) from exc
         if isinstance(expected, ReponseIllisible):
             raise HTTPException(
                 status_code=502,
-                detail="L'agent n'a pas rendu ses trois champs. Repose la question.",
+                detail="L'agent n'a pas rendu une réponse structurée valide. Essaie de reformuler ta question.",
             ) from exc
         if isinstance(expected, modele.ErreurModele):
-            raise HTTPException(status_code=502, detail=str(expected)) from exc
+            texte = getattr(expected, "texte", str(expected)).lower()
+            if "401" in texte or "refusée" in texte or "révoquée" in texte:
+                detail = "Le service d'IA est temporairement indisponible (clé d'API invalide ou expirée)."
+            elif "429" in texte or "529" in texte or "surcharg" in texte or "saturation" in texte:
+                detail = "Le service d'IA est temporairement surchargé. Réessaie dans quelques instants."
+            else:
+                detail = "Le service d'IA a renvoyé une erreur. Réessaie dans quelques instants."
+            raise HTTPException(status_code=502, detail=detail) from exc
         raise HTTPException(
             status_code=502,
-            detail="L'agent a échoué lors du traitement de la question.",
+            detail="Une erreur est survenue lors du traitement de la question. Réessaie dans quelques instants.",
         ) from exc
 
     duration = round(time.monotonic() - started, 2)

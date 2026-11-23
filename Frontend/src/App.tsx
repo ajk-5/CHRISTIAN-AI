@@ -116,6 +116,7 @@ export default function App() {
     { tokens: 0, cost: 0 },
   );
 
+  const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
   const mascotState: MascotState = loading ? 'thinking' : speakingId ? 'speaking' : 'idle';
   const title = PAGES.find((item) => item.id === page)?.label ?? '';
 
@@ -143,7 +144,7 @@ export default function App() {
         </nav>
 
         <div className="sidebar__foot">
-          <span className="local"><span className="dot" aria-hidden="true" /> Mode local · 127.0.0.1</span>
+          <span className="local"><span className="dot" aria-hidden="true" /> {isLocal ? 'Mode local · 127.0.0.1' : 'En ligne · Production'}</span>
           <span>Session : {integer.format(session.tokens)} jetons · {session.cost.toLocaleString('fr-FR', { maximumFractionDigits: 4 })} $</span>
         </div>
       </aside>

@@ -1,10 +1,10 @@
 import { Database, ShieldCheck, Sparkles } from 'lucide-react';
 
 const STEPS = [
-  ['Question', 'Vous posez une question en français. Le serveur local la transmet à uv run kit agent.'],
-  ['Code', 'L\'agent (un CodeAgent de smolagents) écrit du Python, l\'exécute sur votre machine et appelle les outils de l\'équipe.'],
+  ['Question', 'Vous posez une question en français. Le serveur la transmet à l\'agent AllergyLab.'],
+  ['Code', 'L\'agent (un CodeAgent de smolagents) écrit du Python, l\'exécute côté serveur et appelle les outils de l\'équipe.'],
   ['Contrôle', 'Sa réponse finale est vérifiée : trois champs, statut, valeur et justification. Sinon, il recommence.'],
-  ['Trace', 'Le kit écrit une trace de chaque question dans traces/, avec les étapes, les jetons et le coût estimé.'],
+  ['Mémoire', 'Les étapes, les jetons et le coût estimé sont affichés et les questions déjà résolues sont réutilisées sans nouvel appel au modèle.'],
 ];
 
 export default function AboutPage() {
@@ -30,7 +30,7 @@ export default function AboutPage() {
       <section className="card">
         <header className="card__head"><div><h2><ShieldCheck size={16} aria-hidden="true" /> À savoir</h2></div></header>
         <ul className="plain">
-          <li>L'agent est <strong>ouvert</strong> : le code qu'il écrit s'exécute avec vos droits, peut lire vos fichiers et accéder au réseau. Gardez le serveur sur 127.0.0.1.</li>
+          <li>L'agent exécute du code Python généré pour analyser les données du projet, encadré par les garde-fous de l'équipe.</li>
           <li>Ce n'est pas un bac à sable, ni un outil de diagnostic médical.</li>
           <li>Chaque question coûte des jetons sur la cagnotte de l'équipe. Le coût estimé s'affiche sous chaque réponse.</li>
           <li>La lecture à voix haute utilise la synthèse vocale du navigateur : elle ne coûte rien et n'envoie rien.</li>
