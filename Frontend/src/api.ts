@@ -64,7 +64,12 @@ async function getJson<T>(path: string, options?: RequestInit): Promise<T> {
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error;
-    throw new Error('Serveur inaccessible. Démarre FastAPI sur 127.0.0.1:8000.');
+    const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+    throw new Error(
+      isLocal
+        ? 'Serveur inaccessible. Démarre FastAPI sur 127.0.0.1:8000.'
+        : 'Serveur inaccessible. Réessaie dans quelques instants.',
+    );
   }
 
   if (!response.ok) {

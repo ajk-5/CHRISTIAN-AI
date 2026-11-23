@@ -17,6 +17,7 @@ import re
 import shutil
 import signal
 import subprocess
+import time
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -28,6 +29,7 @@ from pydantic import BaseModel, Field, field_validator
 ROOT = Path(__file__).resolve().parent.parent
 TRACE_ROOT = (ROOT / "traces" / "appels").resolve()
 POLLEN_CALENDAR = ROOT / "donnees_complementaires" / "rnsa-pollens-mensuels-france.csv"
+IS_VERCEL = bool(os.environ.get("VERCEL"))
 MAX_EXECUTION_SECONDS = 300
 MAX_STEP_CODE = 4000  # characters of agent code sent to the browser for each step
 # A taxon whose monthly mean never reaches 1 grain/m³ is noise at national scale: not charted.
@@ -35,13 +37,23 @@ MIN_POLLEN_PEAK = 1.0
 _agent_lock = asyncio.Lock()
 
 app = FastAPI(
-    title="AllergyLab Local API",
-    description="Local bridge to the course's existing Python agent and datasets.",
+    title="AllergyLab API",
+    description="Bridge to the AllergyLab Python agent and datasets.",
     version="0.2.0",
 )
 
 
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
+def _allowed_hosts() -> list[str]:
+    configured = os.environ.get("ALLOWED_HOSTS", "").strip()
+    if configured:
+        return [host.strip() for host in configured.split(",") if host.strip()]
+    if IS_VERCEL:
+        # Vercel's edge proxy validates the Host header before forwarding to the function.
+        return ["*"]
+    return ["127.0.0.1", "localhost"]
+
+
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=_allowed_hosts())
 
 
 class AskRequest(BaseModel):
@@ -356,10 +368,82 @@ async def _run_kit(question: str) -> AskResponse:
     return _parse_answer(stdout)
 
 
+def _run_agent_in_process(question: str) -> AskResponse:
+    """Run the team agent in-process (used on Vercel where `uv` is unavailable and disk is read-only)."""
+    from kit import modele
+    from kit.cle import CleAbsente
+    from kit.question import charger_repondre, erreur_prevue
+    from kit.reponse import ReponseIllisible, valider
+
+    modele.journal_neuf()
+    started = time.monotonic()
+    try:
+        raw = charger_repondre(ROOT)(question)
+        if modele.journal.get("erreur"):
+            raise modele.journal["erreur"]
+        answer = valider(raw)
+    except Exception as exc:
+        expected = erreur_prevue(exc) or exc
+        if isinstance(expected, modele.CagnotteEpuisee):
+            raise HTTPException(
+                status_code=502,
+                detail="Cagnotte épuisée : la limite de dépense de l'équipe est atteinte. Va voir Adrien.",
+            ) from exc
+        if isinstance(expected, CleAbsente):
+            raise HTTPException(
+                status_code=502,
+                detail="La clé d'API est absente. Configure la variable d'environnement ALLERGYLAB_CLE sur Vercel.",
+            ) from exc
+        if isinstance(expected, ReponseIllisible):
+            raise HTTPException(
+                status_code=502,
+                detail="L'agent n'a pas rendu ses trois champs. Repose la question.",
+            ) from exc
+        if isinstance(expected, modele.ErreurModele):
+            raise HTTPException(status_code=502, detail=str(expected)) from exc
+        raise HTTPException(
+            status_code=502,
+            detail="L'agent a échoué lors du traitement de la question.",
+        ) from exc
+
+    duration = round(time.monotonic() - started, 2)
+    journal = modele.journal
+    usage = None
+    if journal.get("modele"):
+        tokens = journal.get("jetons") or {}
+        usage = Usage(
+            model=str(journal["modele"]),
+            input_tokens=int(tokens.get("entree") or 0),
+            output_tokens=int(tokens.get("sortie") or 0),
+            estimated_cost_usd=float(journal.get("cout_estime") or 0),
+        )
+
+    steps = []
+    for step in journal.get("etapes") or []:
+        code = step.get("code") if isinstance(step, dict) else None
+        if isinstance(code, str) and code.strip():
+            steps.append(Step(code=code.strip()[:MAX_STEP_CODE]))
+
+    status = answer["statut"]
+    value = None if status == "abstention" else answer["valeur"]
+    return AskResponse(
+        status=status,
+        value=value,
+        justification=answer["justification"].strip(),
+        usage=usage,
+        steps=steps,
+        duration_s=duration,
+        reused=any(step.code.startswith("# Réponse reprise") for step in steps),
+        blocked=any(step.code.startswith("# Question refusée par le garde-fou") for step in steps),
+    )
+
+
 @app.post("/api/agent/ask", response_model=AskResponse)
 async def ask_agent(payload: AskRequest) -> AskResponse:
     # No concurrent calls: the original harness has module-level state and a team budget.
     if _agent_lock.locked():
         raise HTTPException(status_code=429, detail="L'agent répond déjà à une question. Attends sa réponse.")
     async with _agent_lock:
+        if IS_VERCEL:
+            return await asyncio.to_thread(_run_agent_in_process, payload.question)
         return await _run_kit(payload.question)
